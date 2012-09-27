@@ -1,0 +1,9 @@
+# OASIS_START
+# DO NOT EDIT (digest: 243668f79b829726724f0ccff13acf89)
+CamlSmokeBinding.o
+Marshaller.o
+ml_qtcore_smoke.o
+ml_qtgui_smoke.o
+ml_qlist.o
+ml_smoke.o
+# OASIS_STOP

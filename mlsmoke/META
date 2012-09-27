@@ -1,0 +1,10 @@
+# OASIS_START
+# DO NOT EDIT (digest: 3f42130f61cc750fb60b8f1c6911bcac)
+version = "0.1"
+description = "OCaml Smoke Library bindings"
+requires = "batteries"
+archive(byte) = "mlsmoke.cma"
+archive(native) = "mlsmoke.cmxa"
+exists_if = "mlsmoke.cmxa"
+# OASIS_STOP
+
