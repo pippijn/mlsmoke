@@ -1,0 +1,22 @@
+# Target
+Target		= smokegen
+
+# Sources
+CXXSources[] =
+	ClassInfo
+	MLSmokeGen
+	mlsmokegen
+
+# Headers
+CXXHeaders[] =
+	ClassInfo.h
+	MLName.h
+	MLSmokeGen.h
+	cstring_container.h
+
+LDFLAGS = $(SMOKES)
+
+PROGRAM = $(CXXProgram $(Target), $(CXXSources))
+$(PROGRAM): $(CXXHeaders)
+
+.DEFAULT: $(PROGRAM)

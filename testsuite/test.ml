@@ -1,16 +1,19 @@
-let _ = QtCore.smoke, QtGui.smoke
-
 let () =
   let app = new QApplication.t in
   let widget = new QWidget.t () in
   let edit = new QTextEdit.t ~parent:widget () in
-  let button = new QPushButton.t ~parent:widget () in
+  let button =
+    object (self)
+      inherit QPushButton.t ~parent:widget () as super
 
-  (*QApplication.aboutQt [];*)
-  (*QMessageBox.aboutQt [StackItem.Unit];*)
+      method hitButtonO () =
+        print_endline "hitButtonO";
+        false
+    end
+  in
 
-  widget#show;
-  QApplication.exec ();
+  QWidget.show widget;
+  QCoreApplication.exec ();
 
   widget#delete;
   app#delete;

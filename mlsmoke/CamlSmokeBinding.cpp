@@ -1,5 +1,6 @@
 #include "CamlSmokeBinding.h"
 #include "MLName.h"
+#include "Marshaller.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -48,7 +49,6 @@ CamlSmokeBinding::warn (char const *fmt, ...)
 
 CamlSmokeBinding::CamlSmokeBinding (Smoke *s)
   : SmokeBinding (s)
-  , marshaller (s)
 {
   for (Smoke::Index i = 0; i < smoke->numMethodMaps; i++)
     {
@@ -82,9 +82,11 @@ CamlSmokeBinding::deleted (Smoke::Index classId, void *obj)
 }
 
 
-value
+std::pair<value, bool>
 CamlSmokeBinding::callCamlMethod (value closure, value self, Smoke::Method const &meth, Smoke::Stack args)
 {
+  Marshaller marshaller (smoke);
+
   std::vector<value> argv (meth.numArgs + 1);
   argv[0] = self;
 
@@ -92,7 +94,17 @@ CamlSmokeBinding::callCamlMethod (value closure, value self, Smoke::Method const
   for (unsigned char i = 0; i < meth.numArgs; i++)
     argv[i + 1] = marshaller.toCaml (types[i], args[i]);
 
-  return caml_callback (closure, argv.size (), argv.data ());
+  value result = caml_callbackN_exn (closure, argv.size (), argv.data ());
+  if (Is_exception_result (result))
+    {
+      value exception = Extract_exception (result);
+      if (!strcmp (String_val (Field (Field (exception, 0), 0)), "Object.Not_implemented"))
+        return { Val_unit, false };
+      throw callback_exception { exception };
+    }
+
+  return { result, false };
+  //return { result, true };
 }
 
 
@@ -116,7 +128,7 @@ CamlSmokeBinding::callMethod (Smoke::Index method, void *obj,
           if (found == methodMap.end ())
             {
               return false;
-              failwith (methodName);
+              throw caml_exception (methodName);
             }
 
           char const *mungedName = smoke->methodNames[found->second];
@@ -129,17 +141,16 @@ CamlSmokeBinding::callMethod (Smoke::Index method, void *obj,
               debug ("calling method %s::%s",
                      className (meth.classId), camlMethodName.c_str ());
 #endif
-              value result = callCamlMethod (closure, self, meth, args);
+              std::pair<value, bool> result = callCamlMethod (closure, self, meth, args);
 #if TRACE_CALLBACK
               debug ("returned %ld", Bool_val (result));
 #endif
-              return Bool_val (result);
+              return result.second;
             }
           else
             {
-              warn ("method %s not found in OCaml class %s",
-                    camlMethodName.c_str (), className (meth.classId));
-              failwith (camlMethodName.c_str ());
+              throw caml_exception ("method %s not found in OCaml class %s",
+                                    camlMethodName.c_str (), className (meth.classId));
             }
         }
     }
@@ -163,7 +174,7 @@ CamlSmokeBinding::className (Smoke::Index classId)
 CamlSmokeBinding &
 CamlSmokeBinding::binding (Smoke *smoke)
 {
-  auto found = bindings.find (smoke);
+  std::map<Smoke *, CamlSmokeBinding>::iterator found = bindings.find (smoke);
   if (found != bindings.end ())
     return found->second;
   return bindings.insert (std::make_pair (smoke, CamlSmokeBinding (smoke))).first->second;

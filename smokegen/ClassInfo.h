@@ -59,6 +59,7 @@ struct TypeInfo
 
 struct MethodInfo
 {
+  ClassInfo const &klass;
   char const *name;
   char const *mungedName;
   long enumValue;
@@ -72,8 +73,9 @@ struct MethodInfo
   bool isStatic      : 1;
   bool isEnum        : 1;
 
-  MethodInfo ()
-    : name ("<invalid>")
+  MethodInfo (ClassInfo const &klass)
+    : klass (klass)
+    , name ("<invalid>")
     , mungedName (nullptr)
     , enumValue (0)
     , id (0)

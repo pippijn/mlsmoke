@@ -4,9 +4,9 @@ extern "C" {
 #include <caml/mlvalues.h>
 }
 
-#include <map>
+#include <smoke.h>
 
-#include "Marshaller.h"
+#include <map>
 
 /*
  * This class will intercept all virtual method calls and will get
@@ -17,7 +17,6 @@ class CamlSmokeBinding
 {
   typedef std::map<std::pair<Smoke::Index, Smoke::Index>, Smoke::Index> method_map;
 
-  Marshaller const marshaller;
   method_map methodMap;
   std::map<void *, value> links;
 
@@ -32,7 +31,7 @@ public:
 
   void deleted (Smoke::Index classId, void *obj);
 
-  value callCamlMethod (value closure, value self, Smoke::Method const &meth, Smoke::Stack args);
+  std::pair<value, bool> callCamlMethod (value closure, value self, Smoke::Method const &meth, Smoke::Stack args);
   bool callMethod (Smoke::Index method, void *obj,
                    Smoke::Stack args, bool isAbstract);
 

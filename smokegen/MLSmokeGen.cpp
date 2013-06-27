@@ -3,14 +3,7 @@
 #include "MLName.h"
 
 #include <algorithm>
-
-
-static std::string
-tolower (std::string &&s)
-{
-  std::transform (s.begin (), s.end (), s.begin (), static_cast<int (*)(int)> (std::tolower));
-  return move (s);
-}
+#include <stdexcept>
 
 
 static void
@@ -21,8 +14,8 @@ genModule (char const *targetDir, char const *smokeName, char const *moduleName)
             targetDir, moduleName);
 
   FILE *fh = fopen (fileName, "w");
-  if (fh == NULL)
-    throw fileName;
+  if (!fh)
+    throw std::runtime_error (fileName);
 
   fprintf (fh, "external %s_Smoke : unit -> Smoke.t = \"ml_%s_Smoke\"\n", smokeName, smokeName);
   fprintf (fh, "external init_%s_Smoke : unit -> unit = \"ml_init_%s_Smoke\"\n", smokeName, smokeName);
@@ -54,36 +47,44 @@ struct CamlType
 {
   char const *tag;
   char const *type;
-  char const *null;
+  char const *conv;
 };
 
 static CamlType
-camlType (TypeInfo const &type)
+camlType (TypeInfo const &type, char const *className)
 {
   if (!type.name)
-    return { "Unit", "unit", "()" };
+    return { "Unit", "unit", "unit" };
 
   if (type.kind == TypeInfo::Enum)
-    return { "Int", "int", "0" };
+    return { "Int", "int", "int" };
+
+  if (type.klass && type.klass->isQObject)
+    {
+      if (!strcmp (className, "QObject"))
+        return { "Object", "methods", "object" };
+      return { "Object", "QObject.methods", "object" };
+    }
 
   static cstring_map<CamlType> const map = {
-    { "bool", { "Bool", "bool", "false" } },
-    { "char", { "Char", "char", "'\\0'" } },
-    { "const bool", { "Bool", "bool", "false" } },
-    { "const char*", { "String", "string", "\"\"" } },
-    { "double", { "Float", "float", "0.0" } },
-    { "int", { "Int", "int", "0 "} },
-    { "unsigned int", { "Int", "int", "0" } },
-    { "unsigned long", { "Int", "int", "0" } },
-    { "long long", { "Int64", "int64", "Int64.of_int 0" } },
+    { "bool", { "Bool", "bool", "bool" } },
+    { "char", { "Char", "char", "char" } },
+    { "const bool", { "Bool", "bool", "bool" } },
+    { "const char*", { "String", "string", "string" } },
+    { "double", { "Float", "float", "float" } },
+    { "int", { "Int", "int", "int" } },
+    { "unsigned int", { "Int", "int", "int" } },
+    { "unsigned long", { "Int", "int", "int" } },
+    { "long long", { "Int64", "int64", "int64" } },
 
-    // default
+    // default to unit
     { "bool*", { } },
     { "bool(*)(QIODevice&,const QMap<QString,QVariant>&)", { } },
     { "bool(*)(QIODevice&,QMap<QString,QVariant>&)", { } },
     { "bool(*)(void*)", { } },
     { "bool(*)(void*,long*)", { } },
     { "char*", { } },
+    { "char**", { } },
     { "const QAbstractItemModel*", { } },
     { "const QAbstractTextDocumentLayout::PaintContext&", { } },
     { "const QAction*", { } },
@@ -103,6 +104,7 @@ camlType (TypeInfo const &type)
     { "const QIcon&", { } },
     { "const QImage&", { } },
     { "const QInputMethodEvent&", { } },
+    { "const QItemSelection", { } },
     { "const QItemSelection&", { } },
     { "const QKeySequence&", { } },
     { "const QLineF&", { } },
@@ -112,6 +114,7 @@ camlType (TypeInfo const &type)
     { "const QList<QKeySequence>&", { } },
     { "const QList<QListWidgetItem*>", { } },
     { "const QList<QModelIndex>&", { } },
+    { "const QList<QObject*>&", { } },
     { "const QList<QRectF>&", { } },
     { "const QList<QStandardItem*>&", { } },
     { "const QList<QTableWidgetItem*>", { } },
@@ -127,18 +130,24 @@ camlType (TypeInfo const &type)
     { "const QMargins&", { } },
     { "const QMatrix&", { } },
     { "const QMetaMethod&", { } },
+    { "const QMetaObject*", { } },
+    { "const QMetaObject&", { } },
     { "const QMimeData*", { } },
     { "const QModelIndex&", { } },
     { "const QObject*", { } },
     { "const QPainterPath&", { } },
     { "const QPalette&", { } },
     { "const QPen&", { } },
+    { "const QPicture*", { } },
     { "const QPicture&", { } },
+    { "const QPixmap", { } },
+    { "const QPixmap*", { } },
     { "const QPixmap&", { } },
     { "const QPoint&", { } },
     { "const QPointF&", { } },
     { "const QPolygonF&", { } },
     { "const QProcessEnvironment&", { } },
+    { "const QRect", { } },
     { "const QRect&", { } },
     { "const QRectF&", { } },
     { "const QRegExp&", { } },
@@ -148,6 +157,7 @@ camlType (TypeInfo const &type)
     { "const QStandardItem*", { } },
     { "const QString&", { } },
     { "const QStringList&", { } },
+    { "const QStyle*", { } },
     { "const QStyleOption*", { } },
     { "const QStyleOptionComplex*", { } },
     { "const QStyleOptionGraphicsItem*", { } },
@@ -165,12 +175,15 @@ camlType (TypeInfo const &type)
     { "const QTime&", { } },
     { "const QTransform&", { } },
     { "const QTreeWidgetItem*", { } },
+    { "const QUndoCommand*", { } },
     { "const QUrl&", { } },
     { "const QValidator*", { } },
     { "const QVariant&", { } },
     { "const QVector3D&", { } },
     { "const QVector<QPair<double,QVariant> >&", { } },
     { "const QWidget*", { } },
+    { "const QX11Info&", { } },
+    { "const void*", { } },
     { "double*", { } },
     { "FILE*", { } },
     { "int*", { } },
@@ -179,12 +192,15 @@ camlType (TypeInfo const &type)
     { "long long*", { } },
     { "QAbstractAnimation*", { } },
     { "QAbstractButton*", { } },
+    { "QAbstractEventDispatcher*", { } },
+    { "QAbstractFileEngine*", { } },
     { "QAbstractItemDelegate*", { } },
     { "QAbstractItemModel*", { } },
     { "QAbstractItemView*", { } },
     { "QAbstractProxyModel*", { } },
     { "QAbstractState*", { } },
     { "QAbstractTextDocumentLayout*", { } },
+    { "QAbstractTextDocumentLayout::PaintContext", { } },
     { "QAbstractTransition*", { } },
     { "QAbstractUndoItem*", { } },
     { "QAccessibleBridge*", { } },
@@ -192,25 +208,44 @@ camlType (TypeInfo const &type)
     { "QAction*", { } },
     { "QActionEvent*", { } },
     { "QActionGroup*", { } },
+    { "QAnimationGroup*", { } },
+    { "QBrush", { } },
+    { "QButtonGroup*", { } },
+    { "QByteArray", { } },
     { "QByteArray*", { } },
     { "QByteArray(*)(const QString&)", { } },
     { "QCalendarWidget*", { } },
+    { "QChar", { } },
     { "QChildEvent*", { } },
+    { "QClipboard*", { } },
     { "QCloseEvent*", { } },
+    { "QColor", { } },
     { "QCompleter*", { } },
     { "QContextMenuEvent*", { } },
+    { "QCoreApplication*", { } },
+    { "QCursor", { } },
+    { "QCursor*", { } },
     { "QDataStream&", { } },
+    { "QDate", { } },
+    { "QDateTime", { } },
+    { "QDesktopWidget*", { } },
+    { "QDir", { } },
     { "QDockWidget*", { } },
     { "QDragEnterEvent*", { } },
     { "QDragLeaveEvent*", { } },
     { "QDragMoveEvent*", { } },
     { "QDropEvent*", { } },
+    { "QEasingCurve", { } },
+    { "QErrorMessage*", { } },
     { "QEvent*", { } },
     { "QFile&", { } },
     { "QFileIconProvider*", { } },
+    { "QFileInfo", { } },
     { "QFlags<QAbstractItemView::EditTrigger>", { } },
     { "QFlags<QAbstractPrintDialog::PrintDialogOption>", { } },
+    { "QFlags<QAbstractSpinBox::StepEnabledFlag>", { } },
     { "QFlags<QColorDialog::ColorDialogOption>", { } },
+    { "QFlags<QDateTimeEdit::Section>", { } },
     { "QFlags<QDialogButtonBox::StandardButton>", { } },
     { "QFlags<QDir::Filter>", { } },
     { "QFlags<QDir::SortFlag>", { } },
@@ -244,19 +279,33 @@ camlType (TypeInfo const &type)
     { "QFlags<QTextEdit::AutoFormattingFlag>", { } },
     { "QFlags<Qt::GestureFlag>", { } },
     { "QFlags<Qt::InputMethodHint>", { } },
+    { "QFlags<Qt::ItemFlag>", { } },
     { "QFlags<Qt::KeyboardModifier>", { } },
     { "QFlags<Qt::MatchFlag>", { } },
+    { "QFlags<Qt::MouseButton>", { } },
+    { "QFlags<Qt::Orientation>", { } },
     { "QFlags<Qt::TextInteractionFlag>", { } },
     { "QFlags<Qt::ToolBarArea>", { } },
     { "QFlags<Qt::WindowState>", { } },
     { "QFlags<Qt::WindowType>", { } },
     { "QFlags<QWizard::WizardOption>", { } },
     { "QFocusEvent*", { } },
+    { "QFont", { } },
+    { "QFontInfo", { } },
+    { "QFontMetrics", { } },
     { "QGraphicsEffect*", { } },
+    { "QGraphicsEffectSource*", { } },
+    { "QGraphicsEllipseItem*", { } },
     { "QGraphicsItem*", { } },
     { "QGraphicsItem**", { } },
     { "QGraphicsItemGroup*", { } },
     { "QGraphicsLayout*", { } },
+    { "QGraphicsLineItem*", { } },
+    { "QGraphicsPathItem*", { } },
+    { "QGraphicsPixmapItem*", { } },
+    { "QGraphicsPolygonItem*", { } },
+    { "QGraphicsProxyWidget*", { } },
+    { "QGraphicsRectItem*", { } },
     { "QGraphicsScene*", { } },
     { "QGraphicsSceneContextMenuEvent*", { } },
     { "QGraphicsSceneDragDropEvent*", { } },
@@ -266,29 +315,66 @@ camlType (TypeInfo const &type)
     { "QGraphicsSceneMoveEvent*", { } },
     { "QGraphicsSceneResizeEvent*", { } },
     { "QGraphicsSceneWheelEvent*", { } },
+    { "QGraphicsSimpleTextItem*", { } },
+    { "QGraphicsTextItem*", { } },
     { "QGraphicsWidget*", { } },
     { "QHeaderView*", { } },
     { "QHelpEvent*", { } },
     { "QHideEvent*", { } },
+    { "QIcon", { } },
     { "QIconEngine*", { } },
     { "QIconEngineV2*", { } },
+    { "QImage", { } },
     { "QImageIOHandler*", { } },
     { "QInputContext*", { } },
     { "QInputMethodEvent*", { } },
     { "QIODevice*", { } },
     { "QItemEditorFactory*", { } },
+    { "QItemSelection", { } },
     { "QItemSelectionModel*", { } },
     { "QKeyEvent*", { } },
+    { "QKeySequence", { } },
     { "QLabel*", { } },
     { "QLayout*", { } },
     { "QLayoutItem*", { } },
     { "QLineEdit*", { } },
     { "QList<int>", { } },
+    { "QList<QAbstractAnimation*>", { } },
+    { "QList<QAbstractButton*>", { } },
+    { "QList<QAbstractState*>", { } },
+    { "QList<QAbstractTransition*>", { } },
     { "QList<QAction*>", { } },
     { "QList<QByteArray>", { } },
+    { "QList<QDockWidget*>", { } },
+    { "QList<QGraphicsItem*>", { } },
+    { "QList<QGraphicsView*>", { } },
+    { "QList<QGraphicsWidget*>", { } },
+    { "QList<QKeySequence>", { } },
+    { "QList<QListWidgetItem*>", { } },
+    { "QList<QMdiSubWindow*>", { } },
+    { "QList<QModelIndex>", { } },
+    { "QList<QObject*>", { } },
+    { "QList<QPair<double,double> >", { } },
+    { "QList<QPair<double,QPointF> >", { } },
     { "QList<QPair<int,int> >", { } },
+    { "QList<QStandardItem*>", { } },
+    { "QList<QTableWidgetItem*>", { } },
+    { "QList<QTableWidgetSelectionRange>", { } },
+    { "QList<QTextBlock>", { } },
+    { "QList<QTextEdit::ExtraSelection>", { } },
+    { "QList<QTextFrame*>", { } },
+    { "QList<QTreeWidgetItem*>", { } },
+    { "QList<QUndoStack*>", { } },
+    { "QList<QUrl>", { } },
+    { "QList<QWidget*>", { } },
     { "QListWidgetItem*", { } },
+    { "QLocale", { } },
+    { "QMap<int,QVariant>", { } },
+    { "QMap<QDate,QTextCharFormat>", { } },
+    { "QMargins", { } },
+    { "QMatrix", { } },
     { "QMatrix4x4*", { } },
+    { "QMdiArea*", { } },
     { "QMdiSubWindow*", { } },
     { "QMenu*", { } },
     { "QMenuBar*", { } },
@@ -301,31 +387,48 @@ camlType (TypeInfo const &type)
     { "QObject*", { } },
     { "QObjectUserData*", { } },
     { "QPaintDevice*", { } },
+    { "QPaintEngine*", { } },
     { "QPainter*", { } },
+    { "QPainterPath", { } },
     { "QPaintEvent*", { } },
+    { "QPalette", { } },
+    { "QPauseAnimation*", { } },
     { "QPicture*", { } },
     { "QPixmap", { } },
+    { "QPixmap*", { } },
+    { "QPoint", { } },
     { "QPoint*", { } },
     { "QPoint&", { } },
+    { "QPointF", { } },
+    { "QPolygon", { } },
+    { "QPolygonF", { } },
     { "QPostEventList*", { } },
     { "QPrinter*", { } },
     { "QProcess*", { } },
+    { "QProcessEnvironment", { } },
     { "QProgressBar*", { } },
     { "QPushButton*", { } },
     { "QRect", { } },
     { "QRect*", { } },
     { "QRectF", { } },
+    { "QRegExp", { } },
     { "QRegion", { } },
     { "QResizeEvent*", { } },
     { "QScrollBar*", { } },
     { "QSessionManager&", { } },
+    { "QSet<QAbstractState*>", { } },
     { "QShowEvent*", { } },
+    { "QSignalTransition*", { } },
     { "QSize", { } },
     { "QSizeF", { } },
     { "QSizePolicy", { } },
     { "QSocketNotifier*", { } },
     { "QSpacerItem*", { } },
+    { "QSplitter*", { } },
+    { "QSplitterHandle*", { } },
     { "QStandardItem*", { } },
+    { "QState*", { } },
+    { "QStateMachine*", { } },
     { "QStatusBar*", { } },
     { "QString", { } },
     { "QString*", { } },
@@ -351,30 +454,52 @@ camlType (TypeInfo const &type)
     { "QStyleOptionTabWidgetFrame*", { } },
     { "QStyleOptionToolBar*", { } },
     { "QStyleOptionToolButton*", { } },
+    { "QStyleOptionViewItem", { } },
     { "QStyleOptionViewItem*", { } },
     { "QTabBar*", { } },
     { "QTabletEvent*", { } },
     { "QTableWidgetItem*", { } },
+    { "QTemporaryFile*", { } },
+    { "QTextBlock", { } },
     { "QTextBlockUserData*", { } },
+    { "QTextCharFormat", { } },
     { "QTextCodec*", { } },
+    { "QTextCursor", { } },
     { "QTextCursor*", { } },
     { "QTextDocument*", { } },
+    { "QTextDocumentPrivate*", { } },
+    { "QTextFormat", { } },
     { "QTextFrame*", { } },
+    { "QTextFrameFormat", { } },
+    { "QTextFrame::iterator", { } },
     { "QTextFrameLayoutData*", { } },
     { "QTextInlineObject", { } },
+    { "QTextListFormat", { } },
+    { "QTextObject*", { } },
+    { "QTextObjectInterface*", { } },
+    { "QTextOption", { } },
+    { "QTextTableCell", { } },
+    { "QTextTableFormat", { } },
     { "QThread*", { } },
+    { "QTime", { } },
     { "QTimeLine*", { } },
     { "QTimerEvent*", { } },
     { "QToolBar*", { } },
+    { "QTransform", { } },
     { "QTranslator*", { } },
     { "QTreeWidgetItem*", { } },
     { "QUndoCommand*", { } },
     { "QUndoGroup*", { } },
     { "QUndoStack*", { } },
+    { "QUrl", { } },
     { "QVariant", { } },
+    { "QVector3D", { } },
+    { "QVector<QPair<double,QVariant> >", { } },
+    { "QVector<QTextFormat>", { } },
     { "QWheelEvent*", { } },
     { "QWidget*", { } },
     { "QWindowSurface*", { } },
+    { "QWizard*", { } },
     { "QWizardPage*", { } },
     { "unsigned char*", { } },
     { "void*", { } },
@@ -388,7 +513,7 @@ camlType (TypeInfo const &type)
   else if (found->second.tag)
     return found->second;
 
-  return { "Unit", "unit", "()" };
+  return { "Unit", "unit", "unit" };
 }
 
 
@@ -405,7 +530,7 @@ printParameters (FILE *fh, MethodInfo const &method)
       int argc = 0;
       for (TypeInfo const &type : method.params)
         {
-          fprintf (fh, " (arg%d : %s)", argc, camlType (type).type);
+          fprintf (fh, " (arg%d : %s)", argc, camlType (type, method.klass.className).type);
           argc++;
         }
     }
@@ -421,7 +546,7 @@ printArguments (FILE *fh, MethodInfo const &method)
     {
       if (argc != 0)
         fprintf (fh, "; ");
-      fprintf (fh, "StackItem.of_%s arg%d", camlType (type).type, argc);
+      fprintf (fh, "StackItem.of_%s arg%d", camlType (type, method.klass.className).conv, argc);
       argc++;
     }
 
@@ -433,8 +558,8 @@ static void
 printInstanceMethodType (FILE *fh, MethodInfo const &method)
 {
   for (TypeInfo const &type : method.params)
-    fprintf (fh, "%s -> ", camlType (type).type);
-  fprintf (fh, "%s", camlType (method.returnType).type);
+    fprintf (fh, "%s -> ", camlType (type, method.klass.className).type);
+  fprintf (fh, "%s", camlType (method.returnType, method.klass.className).type);
 }
 
 
@@ -444,15 +569,13 @@ printStaticMethod (FILE *fh, MethodInfo const &method)
   if (!method.isStatic || method.isEnum)
     return;
 
-  char const *tag = camlType (method.returnType).tag;
-
   std::string const &name = mlName (method.mungedName);
   fprintf (fh, "  let %s", name.c_str ());
   printParameters (fh, method);
   fprintf (fh, " = StackItem.to_%s (Object.callMethod metaClass \"%s\"",
-           tolower (tag).c_str (), method.mungedName);
+           camlType (method.returnType, method.klass.className).conv, method.mungedName);
   printArguments (fh, method);
-  fprintf (fh, " StackItem.Type_%s)\n", tag);
+  fprintf (fh, ")\n");
 }
 
 
@@ -478,7 +601,7 @@ printVirtualMethod (FILE *fh, MethodInfo const &method)
   std::string const &name = mlName (method.mungedName);
   fprintf (fh, "  method %s", name.c_str ());
   printParameters (fh, method);
-  fprintf (fh, " = %s\n", camlType (method.returnType).null);
+  fprintf (fh, " : %s = Pervasives.raise Object.Not_implemented\n", camlType (method.returnType, method.klass.className).type);
 }
 
 
@@ -488,29 +611,31 @@ printInstanceMethod (FILE *fh, MethodInfo const &method)
   if (method.isVirtual || method.isStatic || method.isConstructor || method.isDestructor)
     return;
 
-  char const *tag = camlType (method.returnType).tag;
-
   std::string const &name = mlName (method.mungedName);
-  fprintf (fh, "  method %s", name.c_str ());
+  fprintf (fh, "  let %s (self : methods)", name.c_str ());
   printParameters (fh, method);
   fprintf (fh, " = StackItem.to_%s (self#callMethod \"%s\"",
-           tolower (tag).c_str (), method.mungedName);
+           camlType (method.returnType, method.klass.className).conv, method.mungedName);
   printArguments (fh, method);
-  fprintf (fh, " StackItem.Type_%s)\n", tag);
+  fprintf (fh, ")\n");
 }
 
 
 static void
 printStatic (FILE *fh, ClassInfo const &info)
 {
+  fprintf (fh, "\n");
+  fprintf (fh, "\n");
+
   fprintf (fh, "module Static = struct\n");
 
   // Inherited statics
   if (info.parents.empty ())
-    fprintf (fh, "  include Object.Static\n");
+    fprintf (fh, "  (*include Object.Static*)\n");
+
   for (ClassInfo const *parent : info.parents)
     if (parent->moduleName)
-      fprintf (fh, "  include %s.Static\n", parent->className);
+      fprintf (fh, "  (*include %s.Static*)\n", parent->className);
 
   // Enums
   if (info.hasEnums ())
@@ -526,6 +651,14 @@ printStatic (FILE *fh, ClassInfo const &info)
       fprintf (fh, "\n  (* Static methods *)\n");
       for (MethodInfo const &method : info.methods)
         printStaticMethod (fh, method);
+    }
+
+  // Non-virtual methods
+  if (info.hasNonVirtuals ())
+    {
+      fprintf (fh, "\n  (* Non-virtual methods *)\n");
+      for (MethodInfo const &method : info.methods)
+        printInstanceMethod (fh, method);
     }
 
   fprintf (fh, "end\n");
@@ -562,14 +695,6 @@ printMethods (FILE *fh, ClassInfo const &info)
         printVirtualMethod (fh, method);
     }
 
-  // Non-virtual methods
-  if (info.hasNonVirtuals ())
-    {
-      fprintf (fh, "\n  (* Non-virtual methods *)\n");
-      for (MethodInfo const &method : info.methods)
-        printInstanceMethod (fh, method);
-    }
-
   fprintf (fh, "end\n");
 }
 
@@ -595,9 +720,9 @@ printClass (FILE *fh, ClassInfo const &info)
   fprintf (fh, "  initializer\n");
   fprintf (fh, "    match parent with\n");
   fprintf (fh, "    | None ->\n");
-  fprintf (fh, "        this <- self#callMethod metaClass.Object.className [] StackItem.Type_ClassP\n");
+  fprintf (fh, "        this <- self#callMethod metaClass.Object.className []\n");
   fprintf (fh, "    | Some parent ->\n");
-  fprintf (fh, "        this <- self#callMethod (metaClass.Object.className ^ \"#\") [parent#this] StackItem.Type_ClassP\n");
+  fprintf (fh, "        this <- self#callMethod (metaClass.Object.className ^ \"#\") [parent#this]\n");
   fprintf (fh, "\n");
   fprintf (fh, "end\n");
 }
@@ -606,7 +731,7 @@ printClass (FILE *fh, ClassInfo const &info)
 void
 genML (char const *targetDir, class_map const &classes)
 {
-  std::map<char const *, bool> done;
+  cstring_map<bool> done;
 
   for (auto const &pair : classes)
     {
@@ -628,19 +753,17 @@ genML (char const *targetDir, class_map const &classes)
           c = '_';
 
       FILE *fh = fopen (fileName, "w");
-      if (fh == NULL)
-        throw fileName;
+      if (!fh)
+        throw std::runtime_error (fileName);
 
       fprintf (fh, "let metaClass = Object.metaClass %s.smoke \"%s\"\n", info.moduleName, pair.first.c_str ());
 
       fprintf (fh, "\n");
       fprintf (fh, "\n");
 
-      printStatic (fh, info);
-
-      fprintf (fh, "\n");
-
       printMethods (fh, info);
+
+      printStatic (fh, info);
 
       printClass (fh, info);
 

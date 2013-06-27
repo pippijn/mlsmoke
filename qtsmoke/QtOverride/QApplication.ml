@@ -13,6 +13,6 @@ class t = object (self)
       let open StackItem in
       [IntRef (ref (QList.length argv)); of_pointer (QList.data argv)]
     in
-    this <- self#callMethod (metaClass.Object.className ^ "$?") stack StackItem.Type_ClassP
+    this <- self#callMethod (metaClass.Object.className ^ "$?") stack
 
 end

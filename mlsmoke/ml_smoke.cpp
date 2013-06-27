@@ -6,7 +6,7 @@
 #include <iostream>
 
 #include "CamlSmokeBinding.h"
-#include "MethodCall.h"
+#include "Marshaller.h"
  
 
 CUSTOM (Smoke::Class);
@@ -60,12 +60,17 @@ ml_Smoke_getMethod (value index)
 
 CAMLprim value
 ml_Smoke_callMethod (Smoke *smoke, value klassValue, value methValue, value arguments, value return_type)
+try
 {
   Smoke::Class &klass = *object_val<Smoke::Class> (klassValue);
   Smoke::Method &meth = *object_val<Smoke::Method> (methValue);
 
   char const *className = klass.className;
   char const *methodName = smoke->methodNames[meth.name];
+
+#if 0
+  printf ("%s::%s\n", className, methodName);
+#endif
 
   // static methods don't get an OCaml 'self'
   bool const needsSelf = !(meth.flags &  Smoke::mf_static);
@@ -76,12 +81,12 @@ ml_Smoke_callMethod (Smoke *smoke, value klassValue, value methValue, value argu
   if (needsSelf)
     {
       if (arguments == Val_emptylist)
-        failwith ("method %s::%s needs a 'self' object and %d arguments",
-                  className, methodName, meth.numArgs);
+        throw caml_exception ("method %s::%s needs a 'self' object and %d arguments",
+                              className, methodName, meth.numArgs);
       self = Field (arguments, 0);
       arguments = Field (arguments, 1);
 
-      Marshaller::checkType (self, Type_ObjectP);
+      Marshaller::checkType (self, Type_ObjectP, "for 'self' in method %s::%s", className, methodName);
       self = Field (self, 0);
     }
 
@@ -89,7 +94,7 @@ ml_Smoke_callMethod (Smoke *smoke, value klassValue, value methValue, value argu
   if (needsThis)
     {
       value thisval = caml_call_method (self, "this");
-      Marshaller::checkType (thisval, Type_ClassP);
+      Marshaller::checkType (thisval, Type_ClassP, "for 'this' in method %s::%s", className, methodName);
       thisptr = Bp_val (Field (thisval, 0));
     }
 
@@ -101,8 +106,8 @@ ml_Smoke_callMethod (Smoke *smoke, value klassValue, value methValue, value argu
   for (unsigned char i = 0; i < meth.numArgs; i++)
     {
       if (arguments == Val_emptylist)
-        failwith ("method %s::%s needs and %d arguments, but only got %d",
-                  className, methodName, meth.numArgs, i);
+        throw caml_exception ("method %s::%s needs and %d arguments, but only got %d",
+                              className, methodName, meth.numArgs, i);
 
       value arg = Field (arguments, 0);
       arguments = Field (arguments, 1);
@@ -110,19 +115,34 @@ ml_Smoke_callMethod (Smoke *smoke, value klassValue, value methValue, value argu
       stack[i + 1] = marshaller.toSmoke (types[i], arg);
     }
 
-  try
-    {
-      klass.classFn (meth.method, thisptr, stack.data ());
+  klass.classFn (meth.method, thisptr, stack.data ());
 
-      return marshaller.toCaml (meth.ret, stack[0]);
-    }
-  catch (caml_exception const &e)
+  if (meth.flags & Smoke::mf_ctor)
     {
-      char exn[48];
-      snprintf (exn, sizeof exn, "exception in callback: %s", e.exn);
-      failwith (exn);
+      CamlSmokeBinding &binding = CamlSmokeBinding::binding (smoke);
+      void *object = stack[0].s_voidp;
+      binding.link (object, self);
+
+      // set the smoke binding
+      Smoke::StackItem stack[2];
+      stack[1].s_voidp = &binding;
+      klass.classFn (0, object, stack);
     }
+
+  return marshaller.toCaml (meth.ret, stack[0]);
 }
+catch (callback_exception const &e)
+{
+  char exn[48];
+  snprintf (exn, sizeof exn, "exception in callback: %p", Field (e.exn, 0));
+  failwith (exn);
+}
+#if 1
+catch (caml_exception const &e)
+{
+  failwith (e.what);
+}
+#endif
 
 
 __END_DECLS

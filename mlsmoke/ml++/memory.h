@@ -103,3 +103,10 @@ alloc_variant (Enum tag, Args... fields)
   store_fields (v, 0, fields...);
   return v;
 }
+
+template<typename... Args>
+static value
+alloc_struct (Args... fields)
+{
+  return alloc_variant<int> (0, fields...);
+}

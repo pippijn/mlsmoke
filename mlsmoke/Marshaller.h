@@ -24,6 +24,8 @@ enum DataType
   Type_ObjectP
 };
 
+struct Converter;
+
 struct Marshaller
 {
   Smoke *const smoke;
@@ -33,9 +35,10 @@ struct Marshaller
   {
   }
 
+  Converter const *findConverter (Smoke::Type const &type) const;
   value toCaml (Smoke::Index typeIndex, Smoke::StackItem const &item) const;
   Smoke::StackItem toSmoke (Smoke::Index typeIndex, value val) const;
 
-  static void checkType (value val, DataType type);
+  static void checkType (value val, DataType type, char const *fmt = 0, ...);
   static DataType dataType (value value);
 };

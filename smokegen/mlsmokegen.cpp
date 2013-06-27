@@ -21,7 +21,7 @@
 #include <smoke/qtxmlpatterns_smoke.h>
 #include <smoke/qtxml_smoke.h>
 
-
+#include <stdexcept>
 #include <sys/time.h>
 
 static void
@@ -103,9 +103,9 @@ main (int argc, char *argv[])
       genML (targetDir, classInfo);
       status ();
     }
-  catch (char const *e)
+  catch (std::runtime_error const &e)
     {
-      puts (e);
+      printf ("\nException caught: %s\n", e.what ());
       return 1;
     }
 

@@ -4,6 +4,7 @@
 #include <smoke.h>
 
 #include <cassert>
+#include <stdexcept>
 
 
 typedef std::map<std::pair<Smoke::Index, Smoke::Index>, Smoke::Index> method_map;
@@ -165,7 +166,7 @@ collectMethodInfo (class_map &classes,
   Smoke::Method const &method = smoke->methods[methodIndex];
   Smoke::Class const &klass = smoke->classes[method.classId];
 
-  MethodInfo methodInfo;
+  MethodInfo methodInfo (classInfo);
   methodInfo.name = smoke->methodNames[method.name];
   methodInfo.id = methodIndex;
 
@@ -296,7 +297,7 @@ collectClassInfo (class_map &classes, Smoke *smoke)
 {
   std::map<std::string, std::string>::const_iterator found = moduleMap.find (smoke->moduleName ());
   if (found == moduleMap.end ())
-    throw "Module not supported in OCaml.";
+    throw std::runtime_error ("Module not supported in OCaml.");
   char const *moduleName = found->second.c_str ();
 
   method_map methodMap;
