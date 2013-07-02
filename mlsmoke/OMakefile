@@ -5,39 +5,36 @@ Version		= 0.1
 
 # Sources
 Modules[] =
-	Class
-	Method
-	ModuleIndex
-	Object
-	Smoke
-	StackItem
+  Class
+  Method
+  ModuleIndex
+  Object
+  Smoke
+  StackItem
 
 # C++ Sources
-CSources[] =
-	CamlSmokeBinding
-	Marshaller
-	ml_qlist
-	ml_qtcore_smoke
-	ml_qtgui_smoke
-	ml_smoke
+Sources[] =
+  CamlSmokeBinding.cpp
+  Marshaller.cpp
+  ml_qlist.cpp
+  ml_qtcore_smoke.cpp
+  ml_qtgui_smoke.cpp
+  ml_smoke.cpp
 
 # C++ Headers
-CHeaders[] =
-	CamlSmokeBinding.h
-	MLName.h
-	Marshaller.h
-	cstring_container.h
-	ml++/callback.h
-	ml++/fail.h
-	ml++/list.h
-	ml++/match.h
-	ml++/memory.h
-	ml++/option.h
-	ml++.h
+Headers[] =
+  CamlSmokeBinding.h
+  MLName.h
+  Marshaller.h
+  cstring_container.h
+  ml++/callback.h
+  ml++/fail.h
+  ml++/list.h
+  ml++/match.h
+  ml++/memory.h
+  ml++/option.h
+  ml++.h
 
-CXXFLAGS += $(shell pkg-config --cflags QtCore)
+C-Requires = $(SMOKES) QtCore
 
-# Link with the C++ standard library
-OCAML_LIB_FLAGS	+= -cclib '-lstdc++ $(SMOKES) $(shell pkg-config --libs QtCore)'
-
-ocaml-library ()
+library (.DEFAULT)

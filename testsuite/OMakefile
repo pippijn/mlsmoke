@@ -3,11 +3,10 @@ Target		= smoketest
 
 # Sources
 Modules[] =
-	SmokeInit
-	Test
+  Test
 
 # Library dependencies
-Requires[] =
-	qtsmoke
+OCaml-Requires[] =
+  qtsmoke
 
-ocaml-program ()
+program (.DEFAULT)
