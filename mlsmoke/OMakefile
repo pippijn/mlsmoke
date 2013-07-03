@@ -1,5 +1,5 @@
 # Target
-Target		= mlsmoke
+Name		= mlsmoke
 Description	= OCaml Smoke bindings
 Version		= 0.1
 
@@ -37,4 +37,4 @@ Headers[] =
 
 C-Requires = $(SMOKES) QtCore
 
-library (.DEFAULT)
+library-install (.DEFAULT)

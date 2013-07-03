@@ -1,5 +1,5 @@
 # Target
-Target		= qtsmoke
+Name		= qtsmoke
 Description	= OCaml Qt Smoke bindings
 Version		= 0.1
 
@@ -219,4 +219,4 @@ OCaml-Requires[] =
   mlsmoke
 
 recurse ($(glob D, *))
-library (.DEFAULT)
+library-install (.DEFAULT)
