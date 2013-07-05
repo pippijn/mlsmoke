@@ -20,4 +20,4 @@ SMOKES[] =
   smokeqtxmlpatterns
   smokeqtxml
 
-.SUBDIRS: $(glob D, *)
+recurse-into ($(glob D, *))
