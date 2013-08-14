@@ -1,0 +1,7 @@
+=head1 OCaml Smoke
+
+Smoke is a library that makes it easier to create bindings to C++ libraries for
+scripting languages. MLSmoke aims to bring all of Qt and other Smoke-supported
+libraries to OCaml.
+
+L<Git repository|https://github.com/pippijn/mlsmoke>
