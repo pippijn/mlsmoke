@@ -6,6 +6,8 @@ struct caml_allocator
     static char const *const identifier;
 
     T data;
+
+    object (T data) : data (data) { }
   };
 
   struct array
@@ -14,13 +16,16 @@ struct caml_allocator
 
     size_t size;
     T data[];
+
+    array (size_t size) : size (size) { }
   };
 
   template<typename Container>
   static custom_operations *operations ()
   {
     static custom_operations operations = {
-      (char *)Container::identifier,
+      const_cast<char *> (Container::identifier),
+      // finalize
       [](value v) { static_cast<Container *> (Data_custom_val (v))->~Container (); },
     };
 
