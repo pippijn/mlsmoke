@@ -1,0 +1,10 @@
+Name		= smoketest
+
+OCaml-Sources[] =
+  Test
+
+OCaml-Requires[] =
+  qtsmoke
+
+TARGET = $(program-install)
+.DEFAULT: $(TARGET)

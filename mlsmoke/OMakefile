@@ -1,0 +1,37 @@
+Name		= mlsmoke
+Description	= OCaml Smoke bindings
+Version		= 0.1
+
+OCaml-Sources[] =
+  Class
+  Method
+  ModuleIndex
+  Object
+  Smoke
+  StackItem
+
+C-Sources[] =
+  CamlSmokeBinding.cpp
+  Marshaller.cpp
+  ml_qlist.cpp
+  ml_qtcore_smoke.cpp
+  ml_qtgui_smoke.cpp
+  ml_smoke.cpp
+
+C-Headers[] =
+  CamlSmokeBinding.h
+  MLName.h
+  Marshaller.h
+  cstring_container.h
+  ml++/callback.h
+  ml++/fail.h
+  ml++/list.h
+  ml++/match.h
+  ml++/memory.h
+  ml++/option.h
+  ml++.h
+
+C-Requires = $(SMOKES) QtCore
+
+TARGET = $(library-install)
+.DEFAULT: $(TARGET)

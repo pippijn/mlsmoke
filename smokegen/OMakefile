@@ -1,0 +1,17 @@
+Name		= smokegen
+
+C-Sources[] =
+  ClassInfo.cpp
+  MLSmokeGen.cpp
+  mlsmokegen.cpp
+
+C-Headers[] =
+  ClassInfo.h
+  MLName.h
+  MLSmokeGen.h
+  cstring_container.h
+
+C-Requires = $(SMOKES)
+
+TARGET = $(program-install)
+.DEFAULT: $(TARGET)
