@@ -216,9 +216,6 @@ OCaml-Requires[] =
   mlsmoke
 
 recurse-subdirs = $(glob D, *)
-curdir = $(dir .)
-.SUBDIRS: $(recurse-subdirs)
-  ocaml-recurse ()
 
 TARGET = $(library-install)
 .DEFAULT: $(TARGET)
