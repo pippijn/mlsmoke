@@ -215,7 +215,5 @@ OCaml-Sources[] =
 OCaml-Requires[] =
   mlsmoke
 
-recurse-subdirs = $(glob D, *)
-
 TARGET = $(library-install)
 .DEFAULT: $(TARGET)
